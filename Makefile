@@ -9,8 +9,10 @@ EXEC := $(DC) exec -T $(APP)
 help: ## Show this help
 > @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
 
-up: ## Build and start the whole stack in the background
+up: ## Build, start the stack, install dependencies and set the app key
 > $(DC) up -d --build
+> $(EXEC) composer install
+> $(EXEC) php artisan key:generate --ansi
 
 down: ## Stop and remove the stack (keeps data volumes)
 > $(DC) down
