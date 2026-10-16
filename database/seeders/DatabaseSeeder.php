@@ -2,7 +2,9 @@
 
 namespace Database\Seeders;
 
+use App\Models\Tier;
 use App\Models\User;
+use App\Services\PurchaseService;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -15,6 +17,8 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->call(TierSeeder::class);
+
         User::factory()->admin()->create([
             'name' => 'Demo Admin',
             'email' => 'admin@loyalty.test',
@@ -25,9 +29,18 @@ class DatabaseSeeder extends Seeder
             'email' => 'staff@loyalty.test',
         ]);
 
-        User::factory()->create([
+        $customer = User::factory()->create([
             'name' => 'Demo Customer',
             'email' => 'customer@loyalty.test',
         ]);
+
+        $account = $customer->account()->create([
+            'tier_id' => Tier::query()->where('slug', 'bronze')->value('id'),
+        ]);
+
+        $purchases = app(PurchaseService::class);
+
+        $purchases->register($account, 12_500, now()->subDays(3), 'demo-purchase-1');
+        $purchases->register($account, 4_000, now()->subDay(), 'demo-purchase-2');
     }
 }
