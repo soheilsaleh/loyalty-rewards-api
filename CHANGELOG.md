@@ -22,5 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Role-based access control with an admin/staff/customer `Role` enum, a `role`
   middleware alias and demo seed accounts.
 - Login rate limiting and full feature test coverage for auth and role access.
+- Member accounts with a points balance, lifetime points and automatic tier
+  upgrades (Bronze, Silver, Gold, Platinum).
+- An append-only points ledger: every balance change is an immutable row and the
+  cached balance is kept equal to the sum of the ledger.
+- Purchase registration with a deterministic earning rate, and refunds that
+  reverse the points a purchase awarded.
+- Admin manual adjustments, plus the `/me/account` and `/me/transactions`
+  endpoints.
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
