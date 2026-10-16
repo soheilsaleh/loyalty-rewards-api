@@ -1,0 +1,8 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Example environment files contain placeholder values only."
+paths = [
+    '''\.env\.example$''',
+]
