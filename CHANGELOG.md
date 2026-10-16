@@ -23,4 +23,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   middleware alias and demo seed accounts.
 - Login rate limiting and full feature test coverage for auth and role access.
 
-[Unreleased]: https://github.com/OWNER/loyalty-rewards-api/commits/main
+[Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
