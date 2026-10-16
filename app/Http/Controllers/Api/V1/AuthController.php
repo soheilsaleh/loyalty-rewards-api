@@ -7,10 +7,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Resources\UserResource;
+use App\Models\Tier;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\DB;
 
 class AuthController extends Controller
 {
@@ -19,10 +21,18 @@ class AuthController extends Controller
      */
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = User::create([
-            ...$request->safe()->only(['name', 'email', 'phone', 'password']),
-            'role' => Role::Customer,
-        ]);
+        $user = DB::transaction(function () use ($request) {
+            $user = User::create([
+                ...$request->safe()->only(['name', 'email', 'phone', 'password']),
+                'role' => Role::Customer,
+            ]);
+
+            $user->account()->create([
+                'tier_id' => Tier::query()->orderBy('min_lifetime_points')->value('id'),
+            ]);
+
+            return $user;
+        });
 
         return UserResource::make($user)
             ->additional(['token' => $this->issueToken($user)])
