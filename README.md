@@ -1,6 +1,6 @@
 # Loyalty & Rewards API
 
-[![CI](https://github.com/OWNER/loyalty-rewards-api/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/loyalty-rewards-api/actions/workflows/ci.yml)
+[![CI](https://github.com/soheilsaleh/loyalty-rewards-api/actions/workflows/ci.yml/badge.svg)](https://github.com/soheilsaleh/loyalty-rewards-api/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3+-blue.svg)](https://www.php.net/)
 [![Laravel](https://img.shields.io/badge/Laravel-12-red.svg)](https://laravel.com/)
@@ -15,8 +15,8 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 0 — project skeleton, Docker stack and CI are in place.
-> Feature work lands phase by phase (see [Roadmap](#roadmap)).
+> **Status:** Phase 1 — authentication, roles and login rate limiting are in
+> place. Feature work lands phase by phase (see [Roadmap](#roadmap)).
 
 ## Features
 
@@ -105,7 +105,7 @@ development. The passwords are non-secret placeholders and must never be reused.
 | staff    | staff@loyalty.test     | `password` |
 | customer | customer@loyalty.test  | `password` |
 
-*(Populated in Phase 1/2.)*
+Seeded by `DatabaseSeeder` (run automatically by `make fresh`).
 
 ## Example requests
 
@@ -146,7 +146,7 @@ make coverage   # require at least 80% coverage
 ## Roadmap
 
 - [x] **Phase 0** — Skeleton, Docker Compose stack, Makefile, CI
-- [ ] **Phase 1** — Auth, roles, rate limiting
+- [x] **Phase 1** — Auth, roles, rate limiting
 - [ ] **Phase 2** — Accounts, tiers, ledger, purchases
 - [ ] **Phase 3** — Rewards and concurrency-safe redemption
 - [ ] **Phase 4** — Campaigns and the spin wheel
