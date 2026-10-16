@@ -24,7 +24,6 @@ docker-compose*.yml
 .dockerignore
 Makefile
 
-tests
 docs
 *.md
 !README.md

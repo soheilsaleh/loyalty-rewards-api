@@ -8,6 +8,8 @@ FROM php:8.3-fpm-bookworm AS base
 ARG UID=1000
 ARG GID=1000
 
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git \
@@ -36,9 +38,15 @@ RUN groupadd --gid "${GID}" app \
 WORKDIR /var/www/html
 
 # ---------------------------------------------------------------------------
-# Development: source code is bind-mounted by docker-compose.
+# Development: dependencies are baked in here so the `vendor` volume can be
+# seeded from the image; the source itself is bind-mounted by docker-compose.
 # ---------------------------------------------------------------------------
 FROM base AS development
+
+COPY --chown=app:app . .
+
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-progress \
+    && chown -R app:app vendor
 
 USER app
 
