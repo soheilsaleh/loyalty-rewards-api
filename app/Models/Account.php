@@ -63,4 +63,12 @@ class Account extends Model
     {
         return $this->hasMany(Purchase::class);
     }
+
+    /**
+     * @return HasMany<Redemption, $this>
+     */
+    public function redemptions(): HasMany
+    {
+        return $this->hasMany(Redemption::class);
+    }
 }
