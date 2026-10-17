@@ -52,5 +52,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Query indexes on the hot paths (`point_transactions.type`,
   `(points_remaining, expires_at)`, `purchases.occurred_at`) and a
   `loyalty:seed-demo` generator for benchmarking.
+- An OpenAPI 3.1 specification (`docs/openapi.yaml`) and a Postman collection
+  (`docs/postman_collection.json`) covering every endpoint, kept in sync with
+  the router by a test.
+- Architecture decision records 0002-0006 (ledger, integer cents, idempotent
+  redemption, FIFO expiry, signed webhooks).
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
