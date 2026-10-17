@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(TierSeeder::class);
         $this->call(RewardSeeder::class);
+        $this->call(CampaignSeeder::class);
 
         User::factory()->admin()->create([
             'name' => 'Demo Admin',

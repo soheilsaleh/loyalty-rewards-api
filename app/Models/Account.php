@@ -71,4 +71,12 @@ class Account extends Model
     {
         return $this->hasMany(Redemption::class);
     }
+
+    /**
+     * @return HasMany<Spin, $this>
+     */
+    public function spins(): HasMany
+    {
+        return $this->hasMany(Spin::class);
+    }
 }
