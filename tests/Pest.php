@@ -38,3 +38,16 @@ function memberWithPoints(int $points): array
 
     return [$user, $account];
 }
+
+/**
+ * Create a member with an account and no points yet.
+ *
+ * @return array{0: User, 1: Account}
+ */
+function memberWithAccount(): array
+{
+    $user = User::factory()->create();
+    $account = Account::factory()->for($user)->create();
+
+    return [$user, $account];
+}

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Account;
+use App\Models\Campaign;
 use App\Models\User;
 use App\Services\PurchaseService;
 use Database\Seeders\TierSeeder;
@@ -36,6 +37,25 @@ it('registers a purchase and awards points', function () {
         'points' => 250,
         'balance_after' => 250,
     ]);
+});
+
+it('boosts the earned points with the highest active campaign multiplier', function () {
+    $staff = User::factory()->staff()->create();
+    $account = Account::factory()->create();
+
+    Campaign::factory()->running()->withMultiplier(1.5)->create();
+    Campaign::factory()->running()->withMultiplier(2)->create();
+    Campaign::factory()->ended()->withMultiplier(5)->create();
+
+    Sanctum::actingAs($staff);
+
+    $this->postJson('/api/v1/purchases', [
+        'account_id' => $account->getKey(),
+        'amount_cents' => 1_000,
+    ])->assertCreated()
+        ->assertJsonPath('data.points_awarded', 200);
+
+    expect($account->refresh()->points_balance)->toBe(200);
 });
 
 it('validates the purchase payload', function () {
