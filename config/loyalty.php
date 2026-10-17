@@ -69,4 +69,18 @@ return [
         'tolerance_seconds' => (int) env('LOYALTY_WEBHOOK_TOLERANCE', 300),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Reports
+    |--------------------------------------------------------------------------
+    |
+    | The aggregated summary is cached for `cache_ttl` seconds to keep the
+    | expensive aggregate queries off the hot path.
+    |
+    */
+
+    'reports' => [
+        'cache_ttl' => (int) env('LOYALTY_REPORTS_CACHE_TTL', 60),
+    ],
+
 ];

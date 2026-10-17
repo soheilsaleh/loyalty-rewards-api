@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Account\AdjustAccountRequest;
 use App\Http\Resources\AccountResource;
@@ -9,6 +10,7 @@ use App\Http\Resources\PointTransactionResource;
 use App\Models\Account;
 use App\Models\User;
 use App\Services\AccountService;
+use App\Services\AuditService;
 use App\Services\PointsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +22,7 @@ class AccountController extends Controller
     public function __construct(
         private readonly AccountService $accounts,
         private readonly PointsService $points,
+        private readonly AuditService $audit,
     ) {}
 
     /**
@@ -63,6 +66,14 @@ class AccountController extends Controller
             points: (int) $request->validated('points'),
             description: (string) $request->validated('reason'),
         );
+
+        /** @var User $actor */
+        $actor = $request->user();
+
+        $this->audit->record($actor, AuditAction::AccountAdjust, $account, [
+            'points' => (int) $request->validated('points'),
+            'reason' => (string) $request->validated('reason'),
+        ]);
 
         return AccountResource::make($account->refresh()->load('tier'));
     }

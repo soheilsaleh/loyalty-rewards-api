@@ -2,18 +2,24 @@
 
 namespace App\Http\Controllers\Api\V1;
 
+use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Reward\StoreRewardRequest;
 use App\Http\Requests\Reward\UpdateRewardRequest;
 use App\Http\Resources\RewardResource;
 use App\Models\Reward;
+use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 
 class RewardController extends Controller
 {
+    public function __construct(private readonly AuditService $audit) {}
+
     /**
      * The active reward catalog, cheapest first.
      */
@@ -39,6 +45,10 @@ class RewardController extends Controller
 
         $reward = Reward::create($data);
 
+        /** @var User $actor */
+        $actor = $request->user();
+        $this->audit->record($actor, AuditAction::RewardCreate, $reward, $data);
+
         return RewardResource::make($reward)
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
@@ -51,14 +61,22 @@ class RewardController extends Controller
     {
         $reward->update($request->validated());
 
+        /** @var User $actor */
+        $actor = $request->user();
+        $this->audit->record($actor, AuditAction::RewardUpdate, $reward, $request->validated());
+
         return RewardResource::make($reward);
     }
 
     /**
      * Remove a reward from the catalog (admin only).
      */
-    public function destroy(Reward $reward): Response
+    public function destroy(Request $request, Reward $reward): Response
     {
+        /** @var User $actor */
+        $actor = $request->user();
+        $this->audit->record($actor, AuditAction::RewardDelete, $reward, ['name' => $reward->name]);
+
         $reward->delete();
 
         return response()->noContent();

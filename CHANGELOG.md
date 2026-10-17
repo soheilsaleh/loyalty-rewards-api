@@ -45,5 +45,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   timestamp tolerance; the `external_id` makes it idempotent.
 - Queued purchase receipts and a `loyalty:reconcile` command that verifies the
   cached balance against the ledger.
+- An admin reporting summary (`GET /reports/summary`) cached in Redis with a
+  configurable TTL.
+- An append-only **audit trail** (`GET /audit-logs`) that records manual
+  adjustments and reward/campaign changes.
+- Query indexes on the hot paths (`point_transactions.type`,
+  `(points_remaining, expires_at)`, `purchases.occurred_at`) and a
+  `loyalty:seed-demo` generator for benchmarking.
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main

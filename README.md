@@ -15,9 +15,9 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 5 — queued notifications, the scheduled expiry job, inbound
-> HMAC webhooks and email are in place. Feature work lands phase by phase (see
-> [Roadmap](#roadmap)).
+> **Status:** Phase 6 — a cached admin reporting summary, an append-only audit
+> trail and query indexes are in place, with measured performance numbers below.
+> Feature work lands phase by phase (see [Roadmap](#roadmap)).
 
 ## Features
 
@@ -31,6 +31,7 @@ Planned for v1.0 (see the roadmap for the delivery order):
 - Campaigns with points multipliers and a weighted **spin wheel**
 - **FIFO points expiry** driven by a scheduled job
 - Inbound **HMAC-signed webhooks**
+- Cached **admin reporting summary** and an **append-only audit trail**
 - OpenAPI docs, Postman collection, automated tests and CI
 
 ## Tech stack
@@ -58,18 +59,18 @@ transaction.
 
 ```
 app/
-  Enums/            Role, TransactionType, RedemptionStatus, ...
+  Enums/            Role, TransactionType, RedemptionStatus, AuditAction, ...
   Models/
   Http/
     Controllers/Api/V1/
     Requests/        FormRequest validation
     Resources/       API responses
     Middleware/       EnsureRole, VerifyWebhookSignature
-  Services/          PointsService, TierService, RedemptionService, CampaignService, SpinService
+  Services/          PointsService, TierService, RedemptionService, CampaignService, SpinService, ReportService, AuditService
   Jobs/              SendExpiryReminder
   Events/ Listeners/  PurchaseRegistered -> SendPurchaseReceipt
   Policies/
-  Console/Commands/  loyalty:expire-points, loyalty:notify-expiring-points, loyalty:reconcile
+  Console/Commands/  loyalty:expire-points, loyalty:notify-expiring-points, loyalty:reconcile, loyalty:seed-demo
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for diagrams and
@@ -108,6 +109,13 @@ development. The passwords are non-secret placeholders and must never be reused.
 
 Seeded by `DatabaseSeeder` (run automatically by `make fresh`).
 
+For benchmarking there is a separate generator that can create a large dataset
+without touching the demo seed:
+
+```bash
+docker compose exec -T app php artisan loyalty:seed-demo --members=5000
+```
+
 ## Example requests
 
 *(Added in Phase 7 together with the OpenAPI / Postman collection.)*
@@ -131,8 +139,42 @@ Short version; full reasoning lives in [`docs/adr`](docs/adr).
 
 ## Performance
 
-*(Filled in Phase 6: `EXPLAIN` output and response times before/after indexing,
-measured against a seeded dataset of 100k members and 1M ledger rows.)*
+The results below were measured locally on a seeded dataset of **5,001 accounts
+and 15,002 ledger rows** (step 3 below), 1 vCPU / 2 GB container. Reproduce them
+with:
+
+```bash
+docker compose exec -T app php artisan loyalty:seed-demo --members=5000
+```
+
+### Query indexes
+
+The expiry scan and the reporting aggregates were the two hot queries, so
+`point_transactions` gained indexes on `type` and `(points_remaining,
+expires_at)`, and `purchases` on `occurred_at` (migration
+`..._add_performance_indexes`). The planner now uses them instead of scanning:
+
+```text
+EXPLAIN SELECT id FROM point_transactions
+  WHERE points_remaining > 0 AND expires_at <= NOW();
+-- key: point_transactions_expires_at_index  | type: range | rows: 1
+
+EXPLAIN SELECT SUM(points) FROM point_transactions WHERE type = 'redeem';
+-- key: point_transactions_type_index         | type: ref
+```
+
+### Cached reporting summary
+
+`GET /api/v1/reports/summary` aggregates the whole ledger, so the result is
+cached in Redis (`loyalty.reports.cache_ttl`, default 60s):
+
+| Path                     | Time     |
+| ------------------------ | -------- |
+| Cache miss (build)       | ~86 ms   |
+| Cache hit (read)         | ~0.5 ms  |
+
+That is roughly **170× faster** on a warm cache, and it keeps the aggregate off
+the database during dashboard traffic spikes.
 
 ## Testing
 
@@ -152,7 +194,7 @@ make coverage   # require at least 80% coverage
 - [x] **Phase 3** — Rewards and concurrency-safe redemption
 - [x] **Phase 4** — Campaigns and the spin wheel
 - [x] **Phase 5** — Queues, scheduler, webhooks, mail
-- [ ] **Phase 6** — Reports, caching, performance tuning
+- [x] **Phase 6** — Reports, caching, performance tuning, audit trail
 - [ ] **Phase 7** — API documentation and ADRs
 - [ ] **Phase 8** — v1.0.0 release
 
