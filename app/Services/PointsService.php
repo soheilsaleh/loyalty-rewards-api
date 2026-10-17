@@ -212,6 +212,60 @@ class PointsService
         return $ledgerTotal === $account->points_balance;
     }
 
+    /**
+     * Expire every batch that is past its expiry date, capped at the
+     * available balance so a refunded account can never go negative.
+     */
+    public function expireDue(Account $account, ?Carbon $at = null): ?PointTransaction
+    {
+        $at ??= now();
+
+        return DB::transaction(function () use ($account, $at) {
+            $account = $this->lockedAccount($account);
+
+            $batches = $account->transactions()
+                ->where('points_remaining', '>', 0)
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<=', $at)
+                ->orderBy('expires_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $available = $account->points_balance;
+            $expired = 0;
+
+            foreach ($batches as $batch) {
+                if ($available <= 0) {
+                    break;
+                }
+
+                $take = min($batch->points_remaining, $available);
+
+                $batch->points_remaining -= $take;
+                $batch->save();
+
+                $available -= $take;
+                $expired += $take;
+            }
+
+            if ($expired === 0) {
+                return null;
+            }
+
+            return $this->writeEntry(
+                account: $account,
+                type: TransactionType::Expire,
+                points: -$expired,
+                description: 'Expired points',
+                reference: null,
+                expiresAt: null,
+                affectsLifetime: false,
+                holdsRemaining: false,
+            );
+        });
+    }
+
     private function lockedAccount(Account $account): Account
     {
         return Account::query()->lockForUpdate()->findOrFail($account->getKey());

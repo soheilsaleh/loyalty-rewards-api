@@ -33,6 +33,7 @@ return [
     'points' => [
         'earn_rate' => (int) env('LOYALTY_EARN_RATE', 10),
         'expiry_months' => (int) env('LOYALTY_EXPIRY_MONTHS', 12),
+        'reminder_days' => (int) env('LOYALTY_EXPIRY_REMINDER_DAYS', 14),
     ],
 
     /*
@@ -50,6 +51,22 @@ return [
         ['slug' => 'silver', 'name' => 'Silver', 'min_lifetime_points' => 1_000],
         ['slug' => 'gold', 'name' => 'Gold', 'min_lifetime_points' => 5_000],
         ['slug' => 'platinum', 'name' => 'Platinum', 'min_lifetime_points' => 20_000],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhooks
+    |--------------------------------------------------------------------------
+    |
+    | Inbound webhooks are signed with HMAC-SHA256 over "timestamp.body" using
+    | the shared secret below. Requests whose timestamp is outside the
+    | tolerance window (in seconds) are rejected to mitigate replay attacks.
+    |
+    */
+
+    'webhooks' => [
+        'secret' => env('LOYALTY_WEBHOOK_SECRET', ''),
+        'tolerance_seconds' => (int) env('LOYALTY_WEBHOOK_TOLERANCE', 300),
     ],
 
 ];

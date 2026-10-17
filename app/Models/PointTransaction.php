@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property int $balance_after
  * @property int $points_remaining
  * @property Carbon|null $expires_at
+ * @property Carbon|null $reminder_sent_at
  */
 class PointTransaction extends Model
 {
@@ -36,6 +37,7 @@ class PointTransaction extends Model
         'description',
         'points_remaining',
         'expires_at',
+        'reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -46,6 +48,7 @@ class PointTransaction extends Model
             'balance_after' => 'integer',
             'points_remaining' => 'integer',
             'expires_at' => 'datetime',
+            'reminder_sent_at' => 'datetime',
             'created_at' => 'datetime',
         ];
     }

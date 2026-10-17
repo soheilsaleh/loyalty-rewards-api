@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\PurchaseStatus;
+use App\Events\PurchaseRegistered;
 use App\Exceptions\DomainException;
 use App\Models\Account;
 use App\Models\Purchase;
@@ -20,7 +21,9 @@ class PurchaseService
      * Register a purchase and award the points it earns.
      *
      * The points are boosted by the highest multiplier among the campaigns
-     * that were running when the purchase happened.
+     * that were running when the purchase happened. When an `external_id` is
+     * given it is treated as an idempotency key: a repeated call returns the
+     * original purchase instead of awarding points again.
      */
     public function register(
         Account $account,
@@ -28,7 +31,17 @@ class PurchaseService
         ?Carbon $occurredAt = null,
         ?string $externalId = null,
     ): Purchase {
-        return DB::transaction(function () use ($account, $amountCents, $occurredAt, $externalId) {
+        $purchase = DB::transaction(function () use ($account, $amountCents, $occurredAt, $externalId) {
+            if ($externalId !== null) {
+                $existing = $account->purchases()
+                    ->where('external_id', $externalId)
+                    ->first();
+
+                if ($existing !== null) {
+                    return $existing;
+                }
+            }
+
             $at = $occurredAt ?? now();
             $points = $this->points->pointsForAmountCents(
                 $amountCents,
@@ -54,6 +67,12 @@ class PurchaseService
 
             return $purchase;
         });
+
+        if ($purchase->wasRecentlyCreated) {
+            PurchaseRegistered::dispatch($purchase);
+        }
+
+        return $purchase;
     }
 
     /**
