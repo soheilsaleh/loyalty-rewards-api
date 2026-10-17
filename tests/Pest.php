@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\Account;
+use App\Models\User;
+use App\Services\PointsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,3 +17,24 @@ use Tests\TestCase;
 */
 
 uses(TestCase::class, RefreshDatabase::class)->in('Feature');
+
+/*
+|--------------------------------------------------------------------------
+| Helpers
+|--------------------------------------------------------------------------
+*/
+
+/**
+ * Create a member with an account and an initial batch of earned points.
+ *
+ * @return array{0: User, 1: Account}
+ */
+function memberWithPoints(int $points): array
+{
+    $user = User::factory()->create();
+    $account = Account::factory()->for($user)->create();
+
+    app(PointsService::class)->earn($account, $points, 'Seed');
+
+    return [$user, $account];
+}
