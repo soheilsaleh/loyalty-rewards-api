@@ -1,6 +1,7 @@
 # Loyalty & Rewards API
 
 [![CI](https://github.com/soheilsaleh/loyalty-rewards-api/actions/workflows/ci.yml/badge.svg)](https://github.com/soheilsaleh/loyalty-rewards-api/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/soheilsaleh/loyalty-rewards-api)](https://github.com/soheilsaleh/loyalty-rewards-api/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PHP](https://img.shields.io/badge/PHP-8.3+-blue.svg)](https://www.php.net/)
 [![Laravel](https://img.shields.io/badge/Laravel-12-red.svg)](https://laravel.com/)
@@ -15,13 +16,13 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 7 — the API is documented with an OpenAPI 3.1 spec, a Postman
-> collection and five ADRs. Feature work lands phase by phase (see
-> [Roadmap](#roadmap)).
+> **Status:** **v1.0.0** — all eight phases are delivered: the API, the Docker
+> stack, tests, CI, benchmarks and documentation are complete. See the
+> [Roadmap](#roadmap) and [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Features
 
-Planned for v1.0 (see the roadmap for the delivery order):
+Everything below ships in v1.0 (see the roadmap for the delivery order):
 
 - Authentication and roles (`admin`, `staff`, `customer`) with Sanctum tokens
 - Append-only **points ledger** — the balance is always the sum of the ledger
@@ -242,7 +243,7 @@ make coverage   # require at least 80% coverage
 - [x] **Phase 5** — Queues, scheduler, webhooks, mail
 - [x] **Phase 6** — Reports, caching, performance tuning, audit trail
 - [x] **Phase 7** — API documentation (OpenAPI + Postman) and ADRs
-- [ ] **Phase 8** — v1.0.0 release
+- [x] **Phase 8** — v1.0.0 release
 
 ### Known limitations
 

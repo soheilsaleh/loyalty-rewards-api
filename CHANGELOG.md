@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-17
+
 ### Added
 
 - Project skeleton based on Laravel 12 (PHP 8.3).
@@ -58,4 +60,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Architecture decision records 0002-0006 (ledger, integer cents, idempotent
   redemption, FIFO expiry, signed webhooks).
 
-[Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
+[Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/soheilsaleh/loyalty-rewards-api/releases/tag/v1.0.0
