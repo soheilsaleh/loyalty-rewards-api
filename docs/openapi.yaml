@@ -1,0 +1,853 @@
+openapi: 3.1.0
+info:
+  title: Loyalty & Rewards API
+  version: 1.0.0
+  description: |
+    A production-minded REST API for a customer loyalty program: members, tiers
+    and an append-only points ledger, purchase points, concurrency-safe reward
+    redemption, campaigns with a spin wheel, FIFO expiry, signed webhooks,
+    reporting and an audit trail.
+
+    All money is expressed in **integer cents** (`amount_cents`). Points are
+    always the sum of the append-only `point_transactions` ledger.
+  contact:
+    name: Soheil Saleh
+    url: https://github.com/soheilsaleh/loyalty-rewards-api
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+servers:
+  - url: http://localhost:8000
+    description: Local Docker Compose stack
+tags:
+  - name: System
+  - name: Auth
+  - name: Account
+  - name: Rewards
+  - name: Campaigns
+  - name: Purchases
+  - name: Reports
+  - name: Webhooks
+security:
+  - bearerAuth: []
+paths:
+  /:
+    get:
+      tags: [System]
+      summary: API index
+      security: []
+      responses:
+        '200':
+          description: Service metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name: { type: string, examples: ['Loyalty & Rewards API'] }
+                  api: { type: string, examples: ['http://localhost:8000/api/v1'] }
+                  status: { type: string, examples: [ok] }
+  /api/v1/health:
+    get:
+      tags: [System]
+      summary: Health check
+      security: []
+      responses:
+        '200':
+          description: The service is up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, examples: [ok] }
+                  time: { type: string, format: date-time }
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new customer
+      description: Creates a customer user, a Bronze account and returns an API token.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, password_confirmation]
+              properties:
+                name: { type: string, maxLength: 255, examples: [Jane Doe] }
+                email: { type: string, format: email, maxLength: 255 }
+                phone: { type: string, nullable: true, maxLength: 32 }
+                password: { type: string, minLength: 8, format: password }
+                password_confirmation: { type: string, format: password }
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthenticatedUser' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and issue a token
+      description: Rate limited to 5 attempts per minute per IP.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password }
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AuthenticatedUser' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke the current token
+      responses:
+        '204': { description: Token revoked }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: The authenticated user
+      responses:
+        '200':
+          description: The current user
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/WrappedUser'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/me/account:
+    get:
+      tags: [Account]
+      summary: The current member's account
+      description: Balance, lifetime points and the current tier.
+      responses:
+        '200':
+          description: The account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/me/transactions:
+    get:
+      tags: [Account]
+      summary: The current member's ledger
+      description: Newest first, cursor paginated.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A cursor page of ledger entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CursorPage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/PointTransaction' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/rewards:
+    get:
+      tags: [Rewards]
+      summary: List the active reward catalog
+      description: Active rewards only, cheapest first, cursor paginated.
+      parameters:
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A cursor page of rewards
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CursorPage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Reward' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Admin]
+      summary: Create a reward (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RewardInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Reward' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/rewards/{reward}:
+    parameters:
+      - $ref: '#/components/parameters/RewardId'
+    put:
+      tags: [Admin]
+      summary: Update a reward (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RewardInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Reward' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Admin]
+      summary: Delete a reward (admin)
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/rewards/{reward}/redeem:
+    parameters:
+      - $ref: '#/components/parameters/RewardId'
+    post:
+      tags: [Rewards]
+      summary: Redeem a reward
+      description: |
+        Spends points FIFO from the oldest batches while holding a row lock on the
+        account and reward. A unique `Idempotency-Key` header is **required**; a
+        retry with the same key returns the original redemption (`200`) instead of
+        charging twice (`201` on first success).
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, maxLength: 255 }
+      responses:
+        '201':
+          description: Redeemed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Redemption' }
+        '200':
+          description: The same idempotency key was replayed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Redemption' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/DomainError' }
+  /api/v1/campaigns/active:
+    get:
+      tags: [Campaigns]
+      summary: Campaigns running now
+      description: Active campaigns currently within their time window, with prize wheels.
+      responses:
+        '200':
+          description: A list of campaigns
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/v1/campaigns:
+    post:
+      tags: [Admin]
+      summary: Create a campaign (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/campaigns/{campaign}:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    put:
+      tags: [Admin]
+      summary: Update a campaign (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignInput' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Campaign' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [Admin]
+      summary: Delete a campaign (admin)
+      responses:
+        '204': { description: Deleted }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /api/v1/campaigns/{campaign}/prizes:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      tags: [Admin]
+      summary: Add a prize to a campaign's wheel (admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CampaignPrizeInput' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/CampaignPrize' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/campaigns/{campaign}/spin:
+    parameters:
+      - $ref: '#/components/parameters/CampaignId'
+    post:
+      tags: [Campaigns]
+      summary: Spin a campaign's wheel
+      description: |
+        Each member may spin a given campaign **once**. The wheel picks an in-stock
+        prize by weight and awards its bonus points (a `0` prize means "try again").
+      responses:
+        '201':
+          description: The prize that was drawn
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Spin' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/DomainError' }
+  /api/v1/purchases:
+    post:
+      tags: [Purchases]
+      summary: Register a purchase and award points (staff/admin)
+      description: |
+        Awards points from `amount_cents` at the highest multiplier among the
+        campaigns running at `occurred_at`. Reusing an `external_id` returns the
+        existing purchase's points instead of awarding twice.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, amount_cents]
+              properties:
+                account_id: { type: integer }
+                amount_cents: { type: integer, minimum: 1 }
+                occurred_at: { type: string, format: date-time, nullable: true }
+                external_id: { type: string, maxLength: 255, nullable: true }
+      responses:
+        '201':
+          description: Purchase registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Purchase' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/purchases/{purchase}/refund:
+    parameters:
+      - $ref: '#/components/parameters/PurchaseId'
+    post:
+      tags: [Purchases]
+      summary: Refund a purchase (staff/admin)
+      description: Reverses the points the purchase awarded and marks it refunded.
+      responses:
+        '200':
+          description: Refunded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Purchase' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/DomainError' }
+  /api/v1/accounts/{account}/adjust:
+    parameters:
+      - $ref: '#/components/parameters/AccountId'
+    post:
+      tags: [Admin]
+      summary: Manually adjust an account balance (admin)
+      description: Writes a ledger entry and records an audit log entry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [points, reason]
+              properties:
+                points: { type: integer, examples: [100], description: Non-zero; negative values debit. }
+                reason: { type: string, maxLength: 255 }
+      responses:
+        '200':
+          description: The updated account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Account' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/reports/summary:
+    get:
+      tags: [Reports]
+      summary: Program summary (admin)
+      description: Aggregated over the whole ledger and cached in Redis (configurable TTL).
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/ReportSummary' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/audit-logs:
+    get:
+      tags: [Admin]
+      summary: The audit trail (admin)
+      description: Newest first, cursor paginated, filterable.
+      parameters:
+        - name: action
+          in: query
+          schema: { type: string, examples: [account.adjust] }
+        - name: user_id
+          in: query
+          schema: { type: integer }
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: A cursor page of audit entries
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/CursorPage'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/AuditLog' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/webhooks/purchase:
+    post:
+      tags: [Webhooks]
+      summary: Inbound purchase webhook (signed)
+      description: |
+        Authenticated with HMAC-SHA256 over `timestamp.body` in the
+        `X-Signature` header, with an `X-Timestamp` replay window. No bearer token
+        is used. `external_id` makes the endpoint idempotent.
+      security: []
+      parameters:
+        - name: X-Signature
+          in: header
+          required: true
+          schema: { type: string }
+        - name: X-Timestamp
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account_id, amount_cents, external_id]
+              properties:
+                account_id: { type: integer }
+                amount_cents: { type: integer, minimum: 0 }
+                external_id: { type: string, maxLength: 255 }
+                occurred_at: { type: string, format: date-time, nullable: true }
+      responses:
+        '201':
+          description: Purchase created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Purchase' }
+        '200':
+          description: Replayed event (already processed)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Purchase' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  parameters:
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+      description: Opaque cursor from a previous page's `meta.next_cursor`.
+    RewardId:
+      name: reward
+      in: path
+      required: true
+      schema: { type: integer }
+    CampaignId:
+      name: campaign
+      in: path
+      required: true
+      schema: { type: integer }
+    AccountId:
+      name: account
+      in: path
+      required: true
+      schema: { type: integer }
+    PurchaseId:
+      name: purchase
+      in: path
+      required: true
+      schema: { type: integer }
+  responses:
+    Unauthorized:
+      description: Missing or invalid token
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: The authenticated user lacks the required role
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: The resource does not exist
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: The action conflicts with existing state (e.g. duplicate idempotency key or already spun)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    DomainError:
+      description: A domain rule was violated (e.g. insufficient points)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ValidationError:
+      description: The request payload failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }
+    TooManyRequests:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServiceUnavailable:
+      description: The webhook signing secret is not configured
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+  schemas:
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+    ValidationError:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+    CursorPage:
+      type: object
+      properties:
+        data: { type: array, items: {} }
+        links:
+          type: object
+          properties:
+            first: { type: string, nullable: true }
+            last: { type: string, nullable: true }
+            prev: { type: string, nullable: true }
+            next: { type: string, nullable: true }
+        meta:
+          type: object
+          properties:
+            path: { type: string }
+            per_page: { type: integer }
+            next_cursor: { type: string, nullable: true }
+            prev_cursor: { type: string, nullable: true }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        phone: { type: string, nullable: true }
+        role: { type: string, enum: [admin, staff, customer] }
+        created_at: { type: string, format: date-time, nullable: true }
+    WrappedUser:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+    AuthenticatedUser:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/User' }
+        token: { type: string, description: Sanctum plain-text token }
+    Tier:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        min_lifetime_points: { type: integer }
+    Account:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        currency: { type: string, examples: [USD] }
+        points_balance: { type: integer }
+        lifetime_points: { type: integer }
+        tier: { nullable: true, allOf: [{ $ref: '#/components/schemas/Tier' }] }
+        updated_at: { type: string, format: date-time, nullable: true }
+    PointTransaction:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, description: 'Machine type, e.g. earn, redeem, adjust, expire, refund, bonus' }
+        label: { type: string }
+        points: { type: integer }
+        balance_after: { type: integer }
+        description: { type: string, nullable: true }
+        expires_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+    Reward:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string, nullable: true }
+        cost_points: { type: integer }
+        stock: { type: integer, nullable: true }
+        is_active: { type: boolean }
+        created_at: { type: string, format: date-time, nullable: true }
+    RewardInput:
+      type: object
+      required: [name, cost_points]
+      properties:
+        name: { type: string, maxLength: 255 }
+        slug: { type: string, maxLength: 255, nullable: true }
+        description: { type: string, maxLength: 1000, nullable: true }
+        cost_points: { type: integer, minimum: 1 }
+        stock: { type: integer, minimum: 0, nullable: true }
+        is_active: { type: boolean }
+    Redemption:
+      type: object
+      properties:
+        id: { type: integer }
+        points_spent: { type: integer }
+        status: { type: string, enum: [pending, fulfilled, cancelled] }
+        reward: { allOf: [{ $ref: '#/components/schemas/Reward' }] }
+        created_at: { type: string, format: date-time, nullable: true }
+    Campaign:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string, nullable: true }
+        multiplier: { type: number, examples: [2] }
+        multiplier_basis_points: { type: integer, examples: [20000] }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+        is_running: { type: boolean }
+        prizes:
+          type: array
+          items: { $ref: '#/components/schemas/CampaignPrize' }
+        created_at: { type: string, format: date-time, nullable: true }
+    CampaignInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, maxLength: 255 }
+        slug: { type: string, maxLength: 255, nullable: true }
+        description: { type: string, maxLength: 1000, nullable: true }
+        multiplier: { type: number, minimum: 1, maximum: 10 }
+        starts_at: { type: string, format: date-time, nullable: true }
+        ends_at: { type: string, format: date-time, nullable: true }
+        is_active: { type: boolean }
+    CampaignPrize:
+      type: object
+      properties:
+        id: { type: integer }
+        label: { type: string }
+        weight: { type: integer }
+        points: { type: integer }
+        stock: { type: integer, nullable: true }
+        has_stock: { type: boolean }
+    CampaignPrizeInput:
+      type: object
+      required: [label, weight, points]
+      properties:
+        label: { type: string, maxLength: 255 }
+        weight: { type: integer, minimum: 1, maximum: 1000000 }
+        points: { type: integer, minimum: 0 }
+        stock: { type: integer, minimum: 0, nullable: true }
+    Spin:
+      type: object
+      properties:
+        id: { type: integer }
+        campaign_id: { type: integer }
+        points_awarded: { type: integer }
+        prize: { nullable: true, allOf: [{ $ref: '#/components/schemas/CampaignPrize' }] }
+        created_at: { type: string, format: date-time, nullable: true }
+    Purchase:
+      type: object
+      properties:
+        id: { type: integer }
+        account_id: { type: integer }
+        external_id: { type: string, nullable: true }
+        amount_cents: { type: integer }
+        points_awarded: { type: integer }
+        status: { type: string, enum: [completed, refunded] }
+        occurred_at: { type: string, format: date-time }
+        refunded_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+    ReportSummary:
+      type: object
+      properties:
+        members: { type: integer }
+        points_outstanding: { type: integer }
+        points_issued: { type: integer }
+        points_redeemed: { type: integer }
+        points_expired: { type: integer }
+        redemptions: { type: integer }
+        purchases: { type: integer }
+        purchase_amount_cents: { type: integer }
+        active_rewards: { type: integer }
+        active_campaigns: { type: integer }
+        generated_at: { type: string, format: date-time }
+    AuditLog:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string, examples: [account.adjust] }
+        action_label: { type: string, nullable: true }
+        auditable:
+          type: object
+          nullable: true
+          properties:
+            type: { type: string, examples: [Account] }
+            id: { type: integer }
+        changes: { type: object, additionalProperties: true, nullable: true }
+        ip_address: { type: string, nullable: true }
+        actor:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        created_at: { type: string, format: date-time, nullable: true }

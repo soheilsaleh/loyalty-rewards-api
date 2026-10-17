@@ -1,0 +1,268 @@
+{
+  "info": {
+    "_postman_id": "b6f0a2c4-1d2e-4f6a-9b3c-0a1b2c3d4e5f",
+    "name": "Loyalty & Rewards API",
+    "description": "REST API for a customer loyalty program. Set `baseUrl` (default http://localhost:8000), then run **Auth / Login** to store a bearer token in the `token` collection variable. See docs/openapi.yaml for the full contract.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register customer",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jane Doe\",\n  \"email\": \"jane@example.com\",\n  \"phone\": \"+15551234567\",\n  \"password\": \"password123\",\n  \"password_confirmation\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/register", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.token) { pm.collectionVariables.set('token', body.token); }",
+                  "pm.test('has a token', () => pm.expect(body.token).to.be.a('string'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@loyalty.test\",\n  \"password\": \"password\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/login", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "login"] }
+          }
+        },
+        {
+          "name": "Current user",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/auth/logout", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "logout"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "My account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/me/account", "host": ["{{baseUrl}}"], "path": ["api", "v1", "me", "account"] }
+          }
+        },
+        {
+          "name": "My ledger",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/me/transactions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "me", "transactions"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rewards",
+      "item": [
+        {
+          "name": "List rewards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/rewards", "host": ["{{baseUrl}}"], "path": ["api", "v1", "rewards"] }
+          }
+        },
+        {
+          "name": "Redeem reward",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Idempotency-Key", "value": "{{$guid}}", "type": "text" }],
+            "url": { "raw": "{{baseUrl}}/api/v1/rewards/1/redeem", "host": ["{{baseUrl}}"], "path": ["api", "v1", "rewards", "1", "redeem"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "item": [
+        {
+          "name": "Active campaigns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/campaigns/active", "host": ["{{baseUrl}}"], "path": ["api", "v1", "campaigns", "active"] }
+          }
+        },
+        {
+          "name": "Spin the wheel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/campaigns/1/spin", "host": ["{{baseUrl}}"], "path": ["api", "v1", "campaigns", "1", "spin"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Purchases (staff/admin)",
+      "item": [
+        {
+          "name": "Register purchase",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": 1,\n  \"amount_cents\": 4999,\n  \"external_id\": \"order-1001\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/purchases", "host": ["{{baseUrl}}"], "path": ["api", "v1", "purchases"] }
+          }
+        },
+        {
+          "name": "Refund purchase",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/purchases/1/refund", "host": ["{{baseUrl}}"], "path": ["api", "v1", "purchases", "1", "refund"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Adjust account",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"points\": 100,\n  \"reason\": \"Goodwill gesture\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/accounts/1/adjust", "host": ["{{baseUrl}}"], "path": ["api", "v1", "accounts", "1", "adjust"] }
+          }
+        },
+        {
+          "name": "Create reward",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Free Coffee\",\n  \"cost_points\": 300,\n  \"stock\": 100\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/rewards", "host": ["{{baseUrl}}"], "path": ["api", "v1", "rewards"] }
+          }
+        },
+        {
+          "name": "Create campaign",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Double Points Weekend\",\n  \"multiplier\": 2,\n  \"starts_at\": \"2026-01-01T00:00:00Z\",\n  \"ends_at\": \"2026-12-31T23:59:59Z\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/campaigns", "host": ["{{baseUrl}}"], "path": ["api", "v1", "campaigns"] }
+          }
+        },
+        {
+          "name": "Add campaign prize",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"250 bonus points\",\n  \"weight\": 10,\n  \"points\": 250,\n  \"stock\": 50\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/campaigns/1/prizes", "host": ["{{baseUrl}}"], "path": ["api", "v1", "campaigns", "1", "prizes"] }
+          }
+        },
+        {
+          "name": "Report summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/api/v1/reports/summary", "host": ["{{baseUrl}}"], "path": ["api", "v1", "reports", "summary"] }
+          }
+        },
+        {
+          "name": "Audit logs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit-logs?action=account.adjust",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "audit-logs"],
+              "query": [{ "key": "action", "value": "account.adjust" }]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "Inbound purchase (HMAC signed)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-Timestamp", "value": "{{$timestamp}}" },
+              { "key": "X-Signature", "value": "<hmac-sha256 of timestamp.body>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": 1,\n  \"amount_cents\": 2599,\n  \"external_id\": \"pos-9001\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/api/v1/webhooks/purchase", "host": ["{{baseUrl}}"], "path": ["api", "v1", "webhooks", "purchase"] }
+          }
+        }
+      ]
+    }
+  ]
+}

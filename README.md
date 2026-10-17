@@ -15,9 +15,9 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 6 — a cached admin reporting summary, an append-only audit
-> trail and query indexes are in place, with measured performance numbers below.
-> Feature work lands phase by phase (see [Roadmap](#roadmap)).
+> **Status:** Phase 7 — the API is documented with an OpenAPI 3.1 spec, a Postman
+> collection and five ADRs. Feature work lands phase by phase (see
+> [Roadmap](#roadmap)).
 
 ## Features
 
@@ -46,7 +46,7 @@ Planned for v1.0 (see the roadmap for the delivery order):
 | Tests              | Pest                                    |
 | Code style         | Laravel Pint                            |
 | Static analysis    | Larastan (PHPStan), level 6             |
-| API docs           | Scribe / OpenAPI *(planned)*            |
+| API docs           | OpenAPI 3.1 spec + Postman collection   |
 | Local stack        | Docker Compose (nginx, php-fpm, mysql, redis, mailpit, queue, scheduler) |
 | CI                 | GitHub Actions + gitleaks               |
 
@@ -116,9 +116,55 @@ without touching the demo seed:
 docker compose exec -T app php artisan loyalty:seed-demo --members=5000
 ```
 
-## Example requests
+## API documentation
 
-*(Added in Phase 7 together with the OpenAPI / Postman collection.)*
+The full contract lives in [`docs/openapi.yaml`](docs/openapi.yaml) (OpenAPI 3.1)
+and can be imported into Postman, Insomnia, Swagger UI or any OpenAPI tooling. A
+ready-to-run [Postman collection](docs/postman_collection.json) is included too:
+set `baseUrl`, run **Auth / Login** (it stores the bearer token), and go.
+
+A test (`tests/Feature/Docs/OpenApiTest.php`) fails the build if the spec and the
+router drift apart, so the documentation cannot silently go stale.
+
+### Example requests
+
+```bash
+BASE=http://localhost:8000/api/v1
+
+# Log in as the seeded admin and capture the token
+TOKEN=$(curl -s -X POST "$BASE/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@loyalty.test","password":"password"}' | jq -r .token)
+
+# Register a purchase (staff/admin) — awards points
+curl -s -X POST "$BASE/purchases" \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"account_id":2,"amount_cents":4999,"external_id":"order-1001"}'
+
+# The current member's account and ledger
+curl -s "$BASE/me/account"     -H "Authorization: Bearer $TOKEN"
+curl -s "$BASE/me/transactions" -H "Authorization: Bearer $TOKEN"
+
+# Redeem a reward (requires a unique idempotency key)
+curl -s -X POST "$BASE/rewards/1/redeem" \
+  -H "Authorization: Bearer $TOKEN" -H "Idempotency-Key: $(uuidgen)"
+
+# Admin reporting summary
+curl -s "$BASE/reports/summary" -H "Authorization: Bearer $TOKEN"
+```
+
+### Signed webhooks
+
+```bash
+BODY='{"account_id":2,"amount_cents":2599,"external_id":"pos-9001"}'
+TS=$(date +%s)
+SIG=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$LOYALTY_WEBHOOK_SECRET" -hex | awk '{print $2}')
+
+curl -s -X POST "$BASE/webhooks/purchase" \
+  -H 'Content-Type: application/json' \
+  -H "X-Timestamp: $TS" -H "X-Signature: $SIG" \
+  -d "$BODY"
+```
 
 ## Design decisions
 
@@ -195,7 +241,7 @@ make coverage   # require at least 80% coverage
 - [x] **Phase 4** — Campaigns and the spin wheel
 - [x] **Phase 5** — Queues, scheduler, webhooks, mail
 - [x] **Phase 6** — Reports, caching, performance tuning, audit trail
-- [ ] **Phase 7** — API documentation and ADRs
+- [x] **Phase 7** — API documentation (OpenAPI + Postman) and ADRs
 - [ ] **Phase 8** — v1.0.0 release
 
 ### Known limitations
