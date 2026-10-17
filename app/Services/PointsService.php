@@ -92,6 +92,41 @@ class PointsService
     }
 
     /**
+     * Spend points, consuming the oldest batches first (FIFO).
+     */
+    public function redeem(
+        Account $account,
+        int $points,
+        string $description,
+        ?Model $reference = null,
+    ): PointTransaction {
+        if ($points <= 0) {
+            throw new InvalidArgumentException('Points to redeem must be greater than zero.');
+        }
+
+        return DB::transaction(function () use ($account, $points, $description, $reference) {
+            $account = $this->lockedAccount($account);
+
+            if ($account->points_balance < $points) {
+                throw new DomainException('The account does not have enough points.');
+            }
+
+            $this->consumeOldestBatches($account, $points);
+
+            return $this->writeEntry(
+                account: $account,
+                type: TransactionType::Redeem,
+                points: -$points,
+                description: $description,
+                reference: $reference,
+                expiresAt: null,
+                affectsLifetime: false,
+                holdsRemaining: false,
+            );
+        });
+    }
+
+    /**
      * Reverse previously earned points, for example when a purchase is
      * refunded. The deduction is capped at the available balance and `null`
      * is returned when there is nothing left to take back.
@@ -136,6 +171,38 @@ class PointsService
     private function lockedAccount(Account $account): Account
     {
         return Account::query()->lockForUpdate()->findOrFail($account->getKey());
+    }
+
+    /**
+     * Consume points from the oldest batches that still have a remainder.
+     */
+    private function consumeOldestBatches(Account $account, int $points): void
+    {
+        $remaining = $points;
+
+        $batches = $account->transactions()
+            ->where('points_remaining', '>', 0)
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($batches as $batch) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            $take = min($batch->points_remaining, $remaining);
+
+            $batch->points_remaining -= $take;
+            $batch->save();
+
+            $remaining -= $take;
+        }
+
+        if ($remaining > 0) {
+            throw new DomainException('The account does not have enough active points.');
+        }
     }
 
     private function writeEntry(

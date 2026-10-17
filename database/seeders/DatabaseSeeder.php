@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(TierSeeder::class);
+        $this->call(RewardSeeder::class);
 
         User::factory()->admin()->create([
             'name' => 'Demo Admin',

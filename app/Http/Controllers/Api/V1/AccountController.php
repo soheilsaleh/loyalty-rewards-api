@@ -7,8 +7,8 @@ use App\Http\Requests\Account\AdjustAccountRequest;
 use App\Http\Resources\AccountResource;
 use App\Http\Resources\PointTransactionResource;
 use App\Models\Account;
-use App\Models\Tier;
 use App\Models\User;
+use App\Services\AccountService;
 use App\Services\PointsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,14 +17,20 @@ use Illuminate\Http\Response;
 
 class AccountController extends Controller
 {
-    public function __construct(private readonly PointsService $points) {}
+    public function __construct(
+        private readonly AccountService $accounts,
+        private readonly PointsService $points,
+    ) {}
 
     /**
      * The authenticated member's account with its tier and balance.
      */
     public function show(Request $request): JsonResponse
     {
-        $account = $this->accountFor($request)->load('tier');
+        /** @var User $user */
+        $user = $request->user();
+
+        $account = $this->accounts->forUser($user)->load('tier');
 
         return AccountResource::make($account)
             ->response()
@@ -36,7 +42,10 @@ class AccountController extends Controller
      */
     public function transactions(Request $request): AnonymousResourceCollection
     {
-        $transactions = $this->accountFor($request)
+        /** @var User $user */
+        $user = $request->user();
+
+        $transactions = $this->accounts->forUser($user)
             ->transactions()
             ->latest('id')
             ->cursorPaginate(15);
@@ -56,15 +65,5 @@ class AccountController extends Controller
         );
 
         return AccountResource::make($account->refresh()->load('tier'));
-    }
-
-    private function accountFor(Request $request): Account
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        return $user->account()->firstOrCreate([], [
-            'tier_id' => Tier::query()->orderBy('min_lifetime_points')->value('id'),
-        ]);
     }
 }
