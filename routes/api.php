@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\Api\V1\AccountController;
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\RedemptionController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RewardController;
 use App\Http\Controllers\Api\V1\SpinController;
 use App\Http\Controllers\Api\V1\WebhookController;
@@ -59,6 +61,9 @@ Route::prefix('v1')->group(function () {
             Route::put('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
             Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
             Route::post('/campaigns/{campaign}/prizes', [CampaignController::class, 'storePrize'])->name('campaigns.prizes.store');
+
+            Route::get('/reports/summary', [ReportController::class, 'summary'])->name('reports.summary');
+            Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         });
     });
 });
