@@ -19,6 +19,9 @@ numbers** instead of vague claims.
 > **Status:** **v1.0.0** — all eight phases are delivered: the API, the Docker
 > stack, tests, CI, benchmarks and documentation are complete. See the
 > [Roadmap](#roadmap) and [`CHANGELOG.md`](CHANGELOG.md).
+>
+> **Example client:** a React SPA that consumes this API over HTTP —
+> [soheilsaleh/loyalty-rewards-web](https://github.com/soheilsaleh/loyalty-rewards-web).
 
 ## Features
 
