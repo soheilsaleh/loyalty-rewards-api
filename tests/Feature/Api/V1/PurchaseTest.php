@@ -1,10 +1,12 @@
 <?php
 
+use App\Mail\PurchaseReceipt;
 use App\Models\Account;
 use App\Models\Campaign;
 use App\Models\User;
 use App\Services\PurchaseService;
 use Database\Seeders\TierSeeder;
+use Illuminate\Support\Facades\Mail;
 use Laravel\Sanctum\Sanctum;
 
 beforeEach(function () {
@@ -64,6 +66,34 @@ it('validates the purchase payload', function () {
     $this->postJson('/api/v1/purchases', [])
         ->assertStatus(422)
         ->assertJsonValidationErrors(['account_id', 'amount_cents']);
+});
+
+it('emails a receipt to the member when a purchase is registered', function () {
+    Mail::fake();
+
+    $staff = User::factory()->staff()->create();
+    $account = Account::factory()->create();
+
+    Sanctum::actingAs($staff);
+
+    $this->postJson('/api/v1/purchases', [
+        'account_id' => $account->getKey(),
+        'amount_cents' => 1_000,
+    ])->assertCreated();
+
+    Mail::assertSent(PurchaseReceipt::class, fn (PurchaseReceipt $mail) => $mail->hasTo($account->user->email));
+});
+
+it('does not email a receipt again when a purchase is replayed by external id', function () {
+    Mail::fake();
+
+    $account = Account::factory()->create();
+    $purchases = app(PurchaseService::class);
+
+    $purchases->register($account, 1_000, externalId: 'order-xyz');
+    $purchases->register($account, 1_000, externalId: 'order-xyz');
+
+    Mail::assertSent(PurchaseReceipt::class, 1);
 });
 
 it('forbids customers from registering purchases', function () {

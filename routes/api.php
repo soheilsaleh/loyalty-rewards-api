@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\RedemptionController;
 use App\Http\Controllers\Api\V1\RewardController;
 use App\Http\Controllers\Api\V1\SpinController;
+use App\Http\Controllers\Api\V1\WebhookController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -14,6 +15,10 @@ Route::prefix('v1')->group(function () {
         'status' => 'ok',
         'time' => now()->toIso8601String(),
     ]));
+
+    Route::post('/webhooks/purchase', [WebhookController::class, 'purchase'])
+        ->middleware('webhook.signature')
+        ->name('webhooks.purchase');
 
     Route::prefix('auth')->name('auth.')->group(function () {
         Route::post('/register', [AuthController::class, 'register'])->name('register');
