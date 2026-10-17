@@ -39,5 +39,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   multiplier among the campaigns that were running at the time.
 - A weighted **spin wheel** where a member spins each campaign once; prizes
   award bonus points and optional stock is tracked.
+- Scheduled jobs that expire points FIFO and email members a reminder before
+  their points expire (deduplicated per batch).
+- An inbound `POST /webhooks/purchase` endpoint signed with HMAC-SHA256 and a
+  timestamp tolerance; the `external_id` makes it idempotent.
+- Queued purchase receipts and a `loyalty:reconcile` command that verifies the
+  cached balance against the ledger.
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
