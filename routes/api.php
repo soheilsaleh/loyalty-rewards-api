@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Api\V1\AccountController;
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\PurchaseController;
 use App\Http\Controllers\Api\V1\RedemptionController;
 use App\Http\Controllers\Api\V1\RewardController;
+use App\Http\Controllers\Api\V1\SpinController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -33,6 +35,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/rewards', [RewardController::class, 'index'])->name('rewards.index');
         Route::post('/rewards/{reward}/redeem', [RedemptionController::class, 'store'])->name('rewards.redeem');
 
+        Route::get('/campaigns/active', [CampaignController::class, 'active'])->name('campaigns.active');
+        Route::post('/campaigns/{campaign}/spin', [SpinController::class, 'store'])->name('campaigns.spin');
+
         Route::middleware('role:staff,admin')->group(function () {
             Route::post('/purchases', [PurchaseController::class, 'store'])->name('purchases.store');
             Route::post('/purchases/{purchase}/refund', [PurchaseController::class, 'refund'])->name('purchases.refund');
@@ -44,6 +49,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/rewards', [RewardController::class, 'store'])->name('rewards.store');
             Route::put('/rewards/{reward}', [RewardController::class, 'update'])->name('rewards.update');
             Route::delete('/rewards/{reward}', [RewardController::class, 'destroy'])->name('rewards.destroy');
+
+            Route::post('/campaigns', [CampaignController::class, 'store'])->name('campaigns.store');
+            Route::put('/campaigns/{campaign}', [CampaignController::class, 'update'])->name('campaigns.update');
+            Route::delete('/campaigns/{campaign}', [CampaignController::class, 'destroy'])->name('campaigns.destroy');
+            Route::post('/campaigns/{campaign}/prizes', [CampaignController::class, 'storePrize'])->name('campaigns.prizes.store');
         });
     });
 });

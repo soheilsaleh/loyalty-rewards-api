@@ -5,6 +5,7 @@ namespace App\Enums;
 enum TransactionType: string
 {
     case Earn = 'earn';
+    case Bonus = 'bonus';
     case Redeem = 'redeem';
     case Adjust = 'adjust';
     case Expire = 'expire';
@@ -17,6 +18,7 @@ enum TransactionType: string
     {
         return match ($this) {
             self::Earn => 'Points earned',
+            self::Bonus => 'Campaign bonus',
             self::Redeem => 'Reward redeemed',
             self::Adjust => 'Manual adjustment',
             self::Expire => 'Points expired',

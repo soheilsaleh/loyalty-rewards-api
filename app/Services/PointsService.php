@@ -17,12 +17,16 @@ class PointsService
 
     /**
      * Points earned for a purchase amount, floored to a whole point.
+     *
+     * The multiplier is expressed in basis points (10_000 = 1x) so campaign
+     * bonuses stay integer and never subtract points.
      */
-    public function pointsForAmountCents(int $amountCents): int
+    public function pointsForAmountCents(int $amountCents, int $multiplierBasisPoints = 10_000): int
     {
         $rate = (int) config('loyalty.points.earn_rate');
+        $basisPoints = max($multiplierBasisPoints, 10_000);
 
-        return intdiv(max($amountCents, 0) * $rate, 100);
+        return intdiv(max($amountCents, 0) * $rate * $basisPoints, 100 * 10_000);
     }
 
     /**
@@ -45,16 +49,56 @@ class PointsService
         ?Model $reference = null,
         ?Carbon $expiresAt = null,
     ): PointTransaction {
+        return $this->award(
+            account: $account,
+            type: TransactionType::Earn,
+            points: $points,
+            description: $description,
+            reference: $reference,
+            expiresAt: $expiresAt,
+        );
+    }
+
+    /**
+     * Award bonus points (campaign prizes, promotions, ...).
+     */
+    public function bonus(
+        Account $account,
+        int $points,
+        string $description,
+        ?Model $reference = null,
+    ): PointTransaction {
+        return $this->award(
+            account: $account,
+            type: TransactionType::Bonus,
+            points: $points,
+            description: $description,
+            reference: $reference,
+            expiresAt: null,
+        );
+    }
+
+    /**
+     * Credit points as a new expiring batch that lifetime totals include.
+     */
+    private function award(
+        Account $account,
+        TransactionType $type,
+        int $points,
+        string $description,
+        ?Model $reference,
+        ?Carbon $expiresAt,
+    ): PointTransaction {
         if ($points <= 0) {
-            throw new InvalidArgumentException('Points to earn must be greater than zero.');
+            throw new InvalidArgumentException('Points to award must be greater than zero.');
         }
 
-        return DB::transaction(function () use ($account, $points, $description, $reference, $expiresAt) {
+        return DB::transaction(function () use ($account, $type, $points, $description, $reference, $expiresAt) {
             $account = $this->lockedAccount($account);
 
             return $this->writeEntry(
                 account: $account,
-                type: TransactionType::Earn,
+                type: $type,
                 points: $points,
                 description: $description,
                 reference: $reference,

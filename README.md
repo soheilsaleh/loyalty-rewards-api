@@ -15,8 +15,8 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 3 — the reward catalog and concurrency-safe, idempotent
-> redemption are in place. Feature work lands phase by phase (see
+> **Status:** Phase 4 — campaigns with points multipliers and a weighted spin
+> wheel are in place. Feature work lands phase by phase (see
 > [Roadmap](#roadmap)).
 
 ## Features
@@ -65,7 +65,7 @@ app/
     Requests/        FormRequest validation
     Resources/       API responses
     Middleware/       EnsureRole, VerifyWebhookSignature
-  Services/          PointsService, TierService, RedemptionService, SpinService
+  Services/          PointsService, TierService, RedemptionService, CampaignService, SpinService
   Jobs/              EarnPointsJob, ExpirePointsJob
   Events/ Listensers/
   Policies/
@@ -150,7 +150,7 @@ make coverage   # require at least 80% coverage
 - [x] **Phase 1** — Auth, roles, rate limiting
 - [x] **Phase 2** — Accounts, tiers, ledger, purchases
 - [x] **Phase 3** — Rewards and concurrency-safe redemption
-- [ ] **Phase 4** — Campaigns and the spin wheel
+- [x] **Phase 4** — Campaigns and the spin wheel
 - [ ] **Phase 5** — Queues, scheduler, webhooks, mail
 - [ ] **Phase 6** — Reports, caching, performance tuning
 - [ ] **Phase 7** — API documentation and ADRs

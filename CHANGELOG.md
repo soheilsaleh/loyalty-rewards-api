@@ -35,5 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Concurrency-safe redemption: the account row is locked, points are consumed
   FIFO from the oldest batches, and an `Idempotency-Key` header makes retries
   return the original redemption instead of spending points twice.
+- Time-boxed campaigns with a points multiplier; purchases earn at the highest
+  multiplier among the campaigns that were running at the time.
+- A weighted **spin wheel** where a member spins each campaign once; prizes
+  award bonus points and optional stock is tracked.
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
