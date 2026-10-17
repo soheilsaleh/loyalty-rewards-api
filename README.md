@@ -15,8 +15,8 @@ in real systems: database design, transactions and concurrency, queues,
 caching, testing, CI, Docker and documentation — with **real, reproducible
 numbers** instead of vague claims.
 
-> **Status:** Phase 2 — member accounts, tiers, the append-only points ledger
-> and purchases are in place. Feature work lands phase by phase (see
+> **Status:** Phase 3 — the reward catalog and concurrency-safe, idempotent
+> redemption are in place. Feature work lands phase by phase (see
 > [Roadmap](#roadmap)).
 
 ## Features
@@ -149,7 +149,7 @@ make coverage   # require at least 80% coverage
 - [x] **Phase 0** — Skeleton, Docker Compose stack, Makefile, CI
 - [x] **Phase 1** — Auth, roles, rate limiting
 - [x] **Phase 2** — Accounts, tiers, ledger, purchases
-- [ ] **Phase 3** — Rewards and concurrency-safe redemption
+- [x] **Phase 3** — Rewards and concurrency-safe redemption
 - [ ] **Phase 4** — Campaigns and the spin wheel
 - [ ] **Phase 5** — Queues, scheduler, webhooks, mail
 - [ ] **Phase 6** — Reports, caching, performance tuning

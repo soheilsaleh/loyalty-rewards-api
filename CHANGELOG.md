@@ -30,5 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reverse the points a purchase awarded.
 - Admin manual adjustments, plus the `/me/account` and `/me/transactions`
   endpoints.
+- A reward catalog with active/inactive rewards and optional stock, managed by
+  admins through create, update and delete endpoints.
+- Concurrency-safe redemption: the account row is locked, points are consumed
+  FIFO from the oldest batches, and an `Idempotency-Key` header makes retries
+  return the original redemption instead of spending points twice.
 
 [Unreleased]: https://github.com/soheilsaleh/loyalty-rewards-api/commits/main
